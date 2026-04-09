@@ -1,59 +1,98 @@
 import pandas as pd
 import re
+from difflib import get_close_matches
+from utils.graph_generator import generate_graph
 
-def extract_column_name(query, columns):
+
+# 🔹 Normalize query (handle synonyms)
+def normalize_query(query):
     query = query.lower()
 
-    # 1. Check for column inside quotes ('Revenue' or "Revenue")
-    match = re.search(r"'(.*?)'|\"(.*?)\"", query)
-    if match:
-        col = match.group(1) if match.group(1) else match.group(2)
-        for c in columns:
-            if c.lower() == col.lower():
-                return c
+    synonyms = {
+        "average": "mean",
+        "avg": "mean",
+        "revenue": "sales",
+        "price": "msrp",
+        "total": "sum"
+    }
 
-    # 2. Match column names directly in query
+    for word, replacement in synonyms.items():
+        query = query.replace(word, replacement)
+
+    return query
+
+
+# 🔹 Smart column matching (fuzzy + flexible)
+def smart_column_match(query, columns):
+    query = query.lower()
+
+    # ✅ Direct match
     for col in columns:
         if col.lower() in query:
             return col
 
+    # ✅ Fuzzy full query match
+    matches = get_close_matches(query, columns, n=1, cutoff=0.5)
+    if matches:
+        return matches[0]
+
+    # ✅ Word-by-word match
+    for word in query.split():
+        matches = get_close_matches(word, columns, n=1, cutoff=0.6)
+        if matches:
+            return matches[0]
+
     return None
 
 
+# 🔹 Main function
 def analyze_data(df, query):
 
-    query = query.lower()
+    # 🔥 Normalize query
+    query = normalize_query(query)
 
-    # 1. Row count
-    if "how many rows" in query or "number of rows" in query:
+    # ------------------ BASIC ------------------
+
+    if "row" in query:
         return f"Total rows: {df.shape[0]}"
 
-    # 2. Column count
-    if "how many columns" in query:
+    if "column" in query:
         return f"Total columns: {df.shape[1]}"
 
-    # Extract column name
-    column = extract_column_name(query, df.columns)
+    # 🔹 Smart column detection
+    column = smart_column_match(query, df.columns)
 
-    # 3. Mean / Average
-    if "mean" in query or "average" in query:
+    # ------------------ STATISTICS ------------------
+
+    if "mean" in query:
         if column:
             return f"Mean of {column}: {df[column].mean()}"
-        else:
-            return "Please specify a valid column name."
+        return f"❌ Column not found. Try: {', '.join(df.columns[:5])}"
 
-    # 4. Maximum
-    if "max" in query or "maximum" in query or "highest" in query:
+    if "max" in query:
         if column:
             return f"Max of {column}: {df[column].max()}"
-        else:
-            return "Please specify a valid column name."
+        return f"❌ Column not found. Try: {', '.join(df.columns[:5])}"
 
-    # 5. Minimum
-    if "min" in query or "minimum" in query or "lowest" in query:
+    if "min" in query:
         if column:
             return f"Min of {column}: {df[column].min()}"
-        else:
-            return "Please specify a valid column name."
+        return f"❌ Column not found. Try: {', '.join(df.columns[:5])}"
 
-    return "Sorry, I can answer questions about rows, columns, mean, max, and min."
+    if "sum" in query:
+        if column:
+            return f"Sum of {column}: {df[column].sum()}"
+        return f"❌ Column not found. Try: {', '.join(df.columns[:5])}"
+
+    # ------------------ GRAPH ------------------
+
+    if any(word in query for word in ["plot", "graph", "chart", "show"]):
+        if column:
+            path = generate_graph(df, column)
+            return {"type": "graph", "path": path}
+
+        return f"❌ Column not found. Try: {', '.join(df.columns[:5])}"
+
+    # ------------------ DEFAULT ------------------
+
+    return "❌ Query not supported. Try: mean sales, plot country, max quantity"

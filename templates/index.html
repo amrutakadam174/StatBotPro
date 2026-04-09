@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>StatBot Pro</title>
+</head>
+<body>
+
+<h2>📊 StatBot Pro – CSV Analyst</h2>
+
+<!-- Upload -->
+<input type="file" id="fileInput">
+<button onclick="uploadFile()">Upload CSV</button>
+
+<br><br>
+
+<!-- Query -->
+<input type="text" id="queryInput" placeholder="Ask a question...">
+<button onclick="sendQuery()">Ask</button>
+
+<br><br>
+
+<!-- Output -->
+<div id="output"></div>
+
+<script>
+function uploadFile() {
+    let file = document.getElementById("fileInput").files[0];
+    let formData = new FormData();
+    formData.append("file", file);
+
+    fetch("/upload", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message));
+}
+
+function sendQuery() {
+    let query = document.getElementById("queryInput").value;
+
+    fetch("/query", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({query: query})
+    })
+    .then(res => res.json())
+    .then(data => {
+        let output = document.getElementById("output");
+
+        if (data.type === "image") {
+            output.innerHTML = `<img src="${data.response}" width="500">`;
+        } else {
+            output.innerHTML = `<p>${data.response}</p>`;
+        }
+    });
+}
+</script>
+
+</body>
+</html>

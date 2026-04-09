@@ -24,19 +24,33 @@ st.sidebar.write("""
    - Max Profit
    - Minimum Revenue
    - Minimum Quantity
+   - Plot Sales graph
+   - Graph Category
+   - And more!
 """)
 
 # File upload
 uploaded_file = st.file_uploader("📁 Upload CSV File", type=["csv"])
 
 if uploaded_file is not None:
-    
     try:
-        # ✅ FIXED LINE
+        # 🔹 Read CSV
         df = pd.read_csv(uploaded_file, encoding='latin1', on_bad_lines='skip')
+
+        # 🔥 IMPORTANT: CLEAN NUMERIC COLUMNS
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                try:
+                    df[col] = df[col].astype(str)
+                    df[col] = df[col].str.replace("₹", "")
+                    df[col] = df[col].str.replace(",", "")
+                    df[col] = pd.to_numeric(df[col], errors='ignore')
+                except:
+                    pass
 
         st.success("✅ File uploaded successfully!")
 
+        # Layout
         col1, col2 = st.columns(2)
 
         with col1:
@@ -50,14 +64,27 @@ if uploaded_file is not None:
             st.write("Column Names:")
             st.write(list(df.columns))
 
+            # Helpful for user
+            st.info(f"💡 Available columns: {', '.join(df.columns)}")
+
+        # Query section
         st.subheader("💬 Ask Your Question")
         query = st.text_input("Type your query here...")
 
         if st.button("🚀 Analyze"):
             if query:
                 result = analyze_data(df, query)
+
                 st.subheader("📈 Result")
-                st.success(result)
+
+                # ✅ GRAPH OUTPUT (Matplotlib)
+                if isinstance(result, dict) and result.get("type") == "graph":
+                    st.image(result["path"], caption="Generated Graph")
+
+                # ✅ TEXT OUTPUT
+                else:
+                    st.success(str(result))
+
             else:
                 st.warning("⚠️ Please enter a question!")
 
