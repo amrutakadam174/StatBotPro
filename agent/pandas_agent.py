@@ -4,6 +4,21 @@ from difflib import get_close_matches
 from utils.graph_generator import generate_graph
 
 
+# 🔒 SECURITY FUNCTION
+def is_safe_query(query):
+    dangerous_keywords = [
+        "import", "os", "sys", "eval", "exec",
+        "open", "file", "delete", "remove",
+        "subprocess", "system", "__"
+    ]
+
+    for word in dangerous_keywords:
+        if word in query.lower():
+            return False
+
+    return True
+
+
 # 🔹 Normalize query (handle synonyms)
 def normalize_query(query):
     query = query.lower()
@@ -48,8 +63,18 @@ def smart_column_match(query, columns):
 # 🔹 Main function
 def analyze_data(df, query):
 
+    # 🔒 SECURITY CHECK
+    if not is_safe_query(query):
+        return "❌ Unsafe query detected. Operation blocked."
+
     # 🔥 Normalize query
     query = normalize_query(query)
+
+    # 🔒 ALLOWED OPERATIONS ONLY
+    allowed_operations = ["mean", "max", "min", "sum", "plot", "graph", "chart", "show"]
+
+    if not any(op in query for op in allowed_operations):
+        return "❌ Only basic analysis allowed (mean, max, min, sum, plot)."
 
     # ------------------ BASIC ------------------
 
